@@ -4,8 +4,6 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { ReportsModule } from './reports/reports.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './users/user.entity';
-import { Report } from './reports/report.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import cookieSession from 'cookie-session';
 
@@ -19,12 +17,15 @@ import cookieSession from 'cookie-session';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         return {
-          type: 'sqlite',
+          type: 'postgres',
+          host: config.get<string>('DB_HOST'),
+          port: Number(config.get<string>('DB_PORT') || 5432),
+          username: config.get<string>('DB_USERNAME'),
+          password: config.get<string>('DB_PASSWORD'),
           database: config.get<string>('DB_NAME'),
-          synchronize: !!(
-            process?.env?.NODE_ENV && process?.env?.NODE_ENV === 'development'
-          ),
-          entities: [User, Report],
+
+          synchronize: false,
+          entities: [__dirname + '/../**/*.entity{.ts,.js}'],
         };
       },
     }),
@@ -35,11 +36,13 @@ import cookieSession from 'cookie-session';
   providers: [AppService],
 })
 export class AppModule {
+  constructor(private configService: ConfigService) {}
+
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(
         cookieSession({
-          keys: ['odsodkoskdoskdos'],
+          keys: [this.configService.get('COOKIE_KEY') as string],
         }),
       )
       .forRoutes('*');
